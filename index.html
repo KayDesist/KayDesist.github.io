@@ -270,6 +270,7 @@
             transition: transform .1s, box-shadow .1s, border-color .15s;
         }
         .p-card:hover { transform: translate(-3px,-3px); box-shadow: 8px 8px 0 #1a1000; border-color: var(--gold); }
+        a.p-card { display: block; text-decoration: none; color: inherit; cursor: pointer; }
         .p-card::before {
             content: 'QUEST ' attr(data-quest);
             position: absolute; top: -12px; left: 14px;
@@ -423,15 +424,123 @@
             .nav-links { gap: 12px; }
             section { padding: 60px 18px; }
         }
+
+        /* ══════════════════════════════════
+           FAIRY FOUNTAIN
+        ══════════════════════════════════ */
+        .fountain-pool {
+            position: absolute;
+            bottom: 50px; left: 50%;
+            transform: translateX(-50%);
+            width: 320px; height: 90px;
+            background: radial-gradient(ellipse at 50% 35%,
+                rgba(100,210,255,0.22) 0%,
+                rgba(50,130,220,0.1) 55%,
+                transparent 100%);
+            border-radius: 50%;
+            z-index: 4;
+            animation: poolGlow 3.5s ease-in-out infinite;
+        }
+        .fountain-pool::before {
+            content: '';
+            position: absolute; inset: 8px;
+            border-radius: 50%;
+            border: 2px solid rgba(130,210,255,0.28);
+            animation: poolRipple 2.8s ease-in-out infinite;
+        }
+        .fountain-pool::after {
+            content: '';
+            position: absolute; inset: 20px;
+            border-radius: 50%;
+            border: 1px solid rgba(130,210,255,0.18);
+            animation: poolRipple 2.8s ease-in-out infinite 0.7s;
+        }
+        @keyframes poolGlow {
+            0%,100% { box-shadow: 0 0 40px 12px rgba(80,190,255,0.12); }
+            50%      { box-shadow: 0 0 70px 28px rgba(80,190,255,0.22); }
+        }
+        @keyframes poolRipple {
+            0%,100% { transform: scale(1); opacity:0.7; }
+            50%      { transform: scale(1.06); opacity:0.3; }
+        }
+
+        /* Rising fountain sparkles */
+        .fbubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(160,230,255,0.85);
+            box-shadow: 0 0 4px 2px rgba(100,200,255,0.5);
+            opacity: 0;
+            animation: riseUp var(--rdur,3s) ease-in infinite;
+            animation-delay: var(--rdly,0s);
+        }
+        @keyframes riseUp {
+            0%   { transform: translate(0,0);                          opacity:0; }
+            12%  { opacity:0.9; }
+            88%  { opacity:0.5; }
+            100% { transform: translate(var(--rx,0px),-130px);         opacity:0; }
+        }
+
+        /* ══════════════════════════════════
+           NAVI
+        ══════════════════════════════════ */
+        #navi {
+            position: fixed;
+            width: 12px; height: 12px;
+            pointer-events: none;
+            z-index: 8000;
+            transform: translate(-50%,-50%);
+        }
+        .navi-core {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: radial-gradient(circle, #fff 18%, #88ddff 55%, rgba(100,200,255,0) 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 8px 4px #66ccff, 0 0 18px 8px rgba(100,200,255,0.45);
+            animation: naviPulse 1.4s ease-in-out infinite;
+        }
+        .navi-wing {
+            position: absolute;
+            width: 11px; height: 7px;
+            background: rgba(190,240,255,0.52);
+            border-radius: 50%;
+            top: 2px;
+        }
+        .navi-wing-l { left:-10px; transform:rotate(-18deg); }
+        .navi-wing-r { right:-10px; transform:rotate(18deg); }
+        @keyframes naviPulse {
+            0%,100% { box-shadow:0 0 8px 4px #66ccff,0 0 18px 8px rgba(100,200,255,0.45); transform:scale(1); }
+            50%      { box-shadow:0 0 12px 6px #99eeff,0 0 28px 12px rgba(100,200,255,0.65); transform:scale(1.18); }
+        }
+
+        /* Hero blue ambient for fountain */
+        #hero::before {
+            content:'';
+            position:absolute; bottom:0; left:50%;
+            transform:translateX(-50%);
+            width:600px; height:280px;
+            background: radial-gradient(ellipse at 50% 80%,
+                rgba(60,160,255,0.13) 0%,
+                rgba(30,80,200,0.05) 55%,
+                transparent 100%);
+            pointer-events:none; z-index:3;
+        }
     </style>
 </head>
 <body>
+
+<!-- Navi fairy cursor -->
+<div id="navi">
+    <div class="navi-core"></div>
+    <div class="navi-wing navi-wing-l"></div>
+    <div class="navi-wing navi-wing-r"></div>
+</div>
 
 <!-- ══════ NAV ══════ -->
 <nav>
     <div class="nav-logo">KAY<em>DESIST</em></div>
     <ul class="nav-links">
-        <li><a href="#projects">QUEST LOG</a></li>
+        <li><a href="#projects">PROJECTS</a></li>
         <li><a href="#skills">STATS</a></li>
         <li><a href="#games">TRIALS</a></li>
         <li><a href="#contact">TOWN</a></li>
@@ -467,6 +576,7 @@
     </div>
 
     <p class="scroll-hint">▼ SCROLL ▼</p>
+    <div class="fountain-pool" id="fountainBubbles"></div>
     <div class="rune-fence"></div>
 </section>
 
@@ -476,37 +586,44 @@
 <section id="projects">
     <div class="sec-head">
         <span class="level-tag">— DUNGEON 01 —</span>
-        <h2 class="sec-title">QUEST LOG</h2>
+        <h2 class="sec-title">RECENT PROJECTS</h2>
     </div>
 
     <div class="projects-grid">
-        <div class="p-card" data-quest="I">
-            <div class="p-screen"><div class="p-screen-txt">[ PROJECT PREVIEW ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
-            <h3 class="p-title">PROJECT ALPHA</h3>
-            <p class="p-desc">Short description of the project. What it does, the problem it solves, why it's awesome.</p>
-            <div class="tags"><span class="tag">UNITY</span><span class="tag">C#</span><span class="tag">GAME</span></div>
-        </div>
+        <a href="https://github.com/KayDesist/CRM-Contact-Manager" target="_blank" rel="noopener" class="p-card" data-quest="I">
+            <div class="p-screen"><div class="p-screen-txt">[ CRM AGENT ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
+            <h3 class="p-title">CRM CONTACT MANAGER</h3>
+            <p class="p-desc">A Slack bot that turns messages and business card photos into Monday.com contacts — powered by Claude AI.</p>
+            <div class="tags"><span class="tag">AWS</span><span class="tag">TYPESCRIPT</span><span class="tag">CLAUDE AI</span><span class="tag">2026</span></div>
+        </a>
 
-        <div class="p-card" data-quest="II">
-            <div class="p-screen"><div class="p-screen-txt">[ PROJECT PREVIEW ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
-            <h3 class="p-title">PROJECT BETA</h3>
-            <p class="p-desc">Short description of the project. What it does, the problem it solves, why it's awesome.</p>
-            <div class="tags"><span class="tag">UNREAL</span><span class="tag">C++</span><span class="tag">3D</span></div>
-        </div>
+        <a href="https://github.com/KayDesist/CapstoneProject" target="_blank" rel="noopener" class="p-card" data-quest="II">
+            <div class="p-screen"><div class="p-screen-txt">[ THE SILENT RITE ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
+            <h3 class="p-title">THE SILENT RITE</h3>
+            <p class="p-desc">Multiplayer asymmetrical horror game. 5+ players, one hidden cultist, two sides — both with tasks. Trust no one.</p>
+            <div class="tags"><span class="tag">UNITY</span><span class="tag">C#</span><span class="tag">BLENDER</span><span class="tag">IN PROGRESS</span></div>
+        </a>
 
-        <div class="p-card" data-quest="III">
-            <div class="p-screen"><div class="p-screen-txt">[ PROJECT PREVIEW ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
-            <h3 class="p-title">PROJECT GAMMA</h3>
-            <p class="p-desc">Short description of the project. What it does, the problem it solves, why it's awesome.</p>
-            <div class="tags"><span class="tag">PYTHON</span><span class="tag">AI</span></div>
-        </div>
+        <a href="https://github.com/KayDesist/Deep-hunger" target="_blank" rel="noopener" class="p-card" data-quest="III">
+            <div class="p-screen"><div class="p-screen-txt">[ DEEP HUNGER ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
+            <h3 class="p-title">DEEP HUNGER</h3>
+            <p class="p-desc">A software engineering final project exploring vibecoding and AI implementation via a web-based experience.</p>
+            <div class="tags"><span class="tag">HTML</span><span class="tag">CLAUDE AI</span><span class="tag">2026</span></div>
+        </a>
 
-        <div class="p-card" data-quest="IV">
-            <div class="p-screen"><div class="p-screen-txt">[ PROJECT PREVIEW ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
-            <h3 class="p-title">PROJECT DELTA</h3>
-            <p class="p-desc">Short description of the project. What it does, the problem it solves, why it's awesome.</p>
-            <div class="tags"><span class="tag">JS</span><span class="tag">WEB</span></div>
-        </div>
+        <a href="https://github.com/Hawkeye9157/Game-Jam" target="_blank" rel="noopener" class="p-card" data-quest="IV">
+            <div class="p-screen"><div class="p-screen-txt">[ GAME JAM 2025 ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
+            <h3 class="p-title">2025 NEUMONT GAME JAM</h3>
+            <p class="p-desc">Racing game where random "bugs" teleport you around the map — putting you in an advantage or disadvantage. "A Feature Not A Bug."</p>
+            <div class="tags"><span class="tag">UNITY</span><span class="tag">C#</span><span class="tag">48HR JAM</span><span class="tag">2025</span></div>
+        </a>
+
+        <a href="https://github.com/KayDesist/Pro200_APP" target="_blank" rel="noopener" class="p-card" data-quest="V">
+            <div class="p-screen"><div class="p-screen-txt">[ PET GAME ]<br>████████████<br>▒▒▒▒▒▒▒▒▒▒▒▒</div></div>
+            <h3 class="p-title">ALIEN PET GAME</h3>
+            <p class="p-desc">Mobile game where you raise an alien pet. Its design shifts to reflect its mood — and you can talk to it via voice-activated AI.</p>
+            <div class="tags"><span class="tag">UNITY</span><span class="tag">C#</span><span class="tag">PROCREATE</span><span class="tag">2025</span></div>
+        </a>
     </div>
 </section>
 
@@ -523,19 +640,19 @@
         <div>
             <p class="skill-cat">// GAME CRAFT</p>
             <div class="skill-row">
-                <div class="skill-label">UNITY <span>LV.8</span></div>
+                <div class="skill-label">UNITY</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="80%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">UNREAL ENGINE <span>LV.7</span></div>
+                <div class="skill-label">UNREAL ENGINE</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="70%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">GAME DESIGN <span>LV.9</span></div>
+                <div class="skill-label">GAME DESIGN</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="90%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">PIXEL ART <span>LV.6</span></div>
+                <div class="skill-label">PIXEL ART</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="60%"></div></div>
             </div>
         </div>
@@ -543,19 +660,19 @@
         <div>
             <p class="skill-cat">// CODE MAGIC</p>
             <div class="skill-row">
-                <div class="skill-label">C# / C++ <span>LV.8</span></div>
+                <div class="skill-label">C# / C++</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="80%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">PYTHON <span>LV.7</span></div>
+                <div class="skill-label">PYTHON</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="70%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">JAVASCRIPT <span>LV.7</span></div>
+                <div class="skill-label">JAVASCRIPT</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="65%"></div></div>
             </div>
             <div class="skill-row">
-                <div class="skill-label">WEB DEV <span>LV.6</span></div>
+                <div class="skill-label">WEB DEV</div>
                 <div class="bar-bg"><div class="bar-fill" data-w="60%"></div></div>
             </div>
         </div>
@@ -620,36 +737,29 @@
 
     <div class="contact-wrap">
         <div class="hall">
-            <div class="hall-title">◆ HALL OF HEROES ◆</div>
+            <div class="hall-title">◆ CONTACT INFORMATION ◆</div>
             <div class="hall-sub">CHOOSE YOUR PATH TO CONNECT</div>
 
             <div class="contact-links">
-                <a href="mailto:placeholder@email.com" class="c-link">
+                <a href="mailto:desistkayla5@gmail.com" class="c-link">
                     <span class="c-icon">✉</span>
                     <span>
                         <span class="c-label">EMAIL</span>
-                        placeholder@email.com
+                        desistkayla5@gmail.com
                     </span>
                 </a>
-                <a href="https://linkedin.com/in/kaydesist" target="_blank" rel="noopener" class="c-link">
+                <a href="https://www.bing.com/ck/a?!&&p=780c3ac0947044d888c3816d20b5a025469b1e5037f6c730fd5e767f9ddebba5JmltdHM9MTc3NTYwNjQwMA&ptn=3&ver=2&hsh=4&fclid=1dc0a4d7-c0c8-6b92-071e-b256c1136adb&psq=kay+desist+linkedin&u=a1aHR0cHM6Ly93d3cubGlua2VkaW4uY29tL2luL2theS1kZXNpc3QtOTE2MzUzMjdh" target="_blank" rel="noopener" class="c-link">
                     <span class="c-icon">🔗</span>
                     <span>
                         <span class="c-label">LINKEDIN</span>
-                        linkedin.com/in/kaydesist
+                        Kay Desist
                     </span>
                 </a>
                 <a href="https://github.com/KayDesist" target="_blank" rel="noopener" class="c-link">
                     <span class="c-icon">⌨</span>
                     <span>
                         <span class="c-label">GITHUB</span>
-                        github.com/KayDesist
-                    </span>
-                </a>
-                <a href="https://kaydesist.itch.io" target="_blank" rel="noopener" class="c-link">
-                    <span class="c-icon">🎮</span>
-                    <span>
-                        <span class="c-label">ITCH.IO</span>
-                        kaydesist.itch.io
+                        KayDesist
                     </span>
                 </a>
             </div>
@@ -904,6 +1014,42 @@ skillObs.observe(document.getElementById('skills'));
     canvas.addEventListener('touchstart', e => { jump(); e.preventDefault(); }, { passive:false });
 
     loop();
+})();
+
+/* ─── NAVI CURSOR FAIRY ──────────────── */
+(function () {
+    const navi = document.getElementById('navi');
+    let mx = window.innerWidth / 2, my = window.innerHeight / 2;
+    let nx = mx, ny = my;
+
+    document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+
+    (function animNavi() {
+        nx += (mx - nx) * 0.11;
+        ny += (my - ny) * 0.11;
+        navi.style.left = nx + 'px';
+        navi.style.top  = ny + 'px';
+        requestAnimationFrame(animNavi);
+    })();
+})();
+
+/* ─── FOUNTAIN BUBBLES ───────────────── */
+(function () {
+    const fb = document.getElementById('fountainBubbles');
+    for (let i = 0; i < 14; i++) {
+        const b = document.createElement('div');
+        b.className = 'fbubble';
+        const sz = 2 + Math.random() * 3;
+        b.style.cssText = `
+            left:${50 + (Math.random() - 0.5) * 220}px;
+            bottom:${8 + Math.random() * 18}px;
+            width:${sz}px; height:${sz}px;
+            --rdur:${2 + Math.random() * 3.5}s;
+            --rdly:${Math.random() * 5}s;
+            --rx:${(Math.random() - 0.5) * 36}px;
+        `;
+        fb.appendChild(b);
+    }
 })();
 </script>
 </body>

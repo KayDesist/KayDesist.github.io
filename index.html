@@ -426,6 +426,53 @@
         }
 
         /* ══════════════════════════════════
+           SNAKE MODAL
+        ══════════════════════════════════ */
+        .cabinets-col { display: flex; flex-direction: column; gap: 20px; }
+
+        .snake-launch-btn {
+            background: none; border: none; padding: 0;
+            cursor: pointer; display: block; text-align: left;
+        }
+        .snake-launch-btn .cabinet { transition: border-color .15s, box-shadow .15s; }
+        .snake-launch-btn:hover .cabinet {
+            border-color: var(--gold-bright);
+            box-shadow: 8px 8px 0 var(--gold-dark);
+        }
+
+        .snake-overlay {
+            display: none; position: fixed; inset: 0; z-index: 3000;
+            background: rgba(0,0,0,.94); backdrop-filter: blur(3px);
+            align-items: center; justify-content: center;
+        }
+        .snake-overlay.open { display: flex; }
+
+        .snake-box {
+            border: 4px solid var(--gold); background: #050505;
+            box-shadow: 0 0 50px rgba(212,165,32,.35), 12px 12px 0 var(--gold-dark);
+            animation: snakeZoom .18s cubic-bezier(.22,.68,0,1.2);
+        }
+        @keyframes snakeZoom {
+            from { transform: scale(0.2); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .snake-box-hdr {
+            padding: 8px 16px; border-bottom: 2px solid var(--gold-dark);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .snake-box-title { font-size: 9px; color: var(--gold-bright); letter-spacing: 2px; }
+        .snake-close-btn {
+            background: none; border: 2px solid var(--gold-dark);
+            color: var(--gold); font-family: 'Press Start 2P', monospace;
+            font-size: 7px; padding: 4px 10px; cursor: pointer; transition: all .1s;
+        }
+        .snake-close-btn:hover { border-color: var(--red); color: var(--red); }
+        .snake-box-ftr {
+            padding: 6px; text-align: center; font-size: 6px;
+            color: #555; border-top: 1px solid #0f0f0f; letter-spacing: 1px;
+        }
+
+        /* ══════════════════════════════════
            FAIRY FOUNTAIN
         ══════════════════════════════════ */
         .fountain-pool {
@@ -701,10 +748,12 @@
         <div>
             <p class="slots-header">// MY GAME PROJECTS</p>
             <div class="slots-grid">
-                <div class="slot">
-                    <span class="slot-badge">QUEST 01</span>
-                    <div class="slot-screen"><span class="slot-cs">[ IN PROGRESS ]</span></div>
-                    <div class="slot-title">GAME TITLE 01</div>
+                <div class="slot" style="cursor:pointer" onclick="openSnakeGame()">
+                    <span class="slot-badge">PLAY NOW</span>
+                    <div class="slot-screen" style="padding:0;overflow:hidden">
+                        <canvas id="snakePreviewCanvas" width="200" height="66" style="display:block;width:100%;height:66px"></canvas>
+                    </div>
+                    <div class="slot-title">GANON'S HUNGER</div>
                 </div>
                 <div class="slot">
                     <span class="slot-badge">QUEST 02</span>
@@ -772,6 +821,18 @@
     BUILT WITH PIXELS &amp; MAGIC · ALL RIGHTS RESERVED<br>
     <span>THE LEGEND CONTINUES...</span>
 </footer>
+
+<!-- ══════ SNAKE MODAL ══════ -->
+<div id="snakeModal" class="snake-overlay">
+    <div class="snake-box">
+        <div class="snake-box-hdr">
+            <span class="snake-box-title">★ GANON'S HUNGER ★</span>
+            <button class="snake-close-btn" onclick="closeSnakeGame()">✕ EXIT</button>
+        </div>
+        <canvas id="snakeModalCanvas"></canvas>
+        <div class="snake-box-ftr">[ ARROW / WASD ] MOVE &nbsp;·&nbsp; [ ENTER ] START &nbsp;·&nbsp; [ ESC ] EXIT</div>
+    </div>
+</div>
 
 <script>
 /* ─── STARS ─────────────────────────── */
@@ -1014,6 +1075,209 @@ skillObs.observe(document.getElementById('skills'));
     canvas.addEventListener('touchstart', e => { jump(); e.preventDefault(); }, { passive:false });
 
     loop();
+})();
+
+/* ─── GANONDORF SNAKE ───────────────── */
+(function () {
+    const SZ = 22, COLS = 20, ROWS = 20;
+    const CW = COLS * SZ, CH = ROWS * SZ; // 440 × 440
+
+    const snakeModal = document.getElementById('snakeModal');
+    const mCvs = document.getElementById('snakeModalCanvas');
+    const mCtx = mCvs.getContext('2d');
+    mCvs.width = CW; mCvs.height = CH;
+
+    const pCvs = document.getElementById('snakePreviewCanvas');
+    const pCtx = pCvs.getContext('2d');
+    const PSZ = 8;
+    const PCOLS = Math.floor(pCvs.width / PSZ);   // 25
+    const PROWS = Math.floor(pCvs.height / PSZ);  // 8
+
+    const C = {
+        bg:'#05010d', grid:'#0f0020',
+        gold:'#D4A520', bright:'#FFE066', em:'#3DAA5C',
+        white:'#EEE8D5', red:'#CC2200',
+        gBase:'#1a0030', gBody:'#2e0050', gHL:'#4a0074',
+        gGold:'#AA7010', gSkin:'#5A3018', gHair:'#BB5500',
+        gEye:'#FF9900', gGem:'#FF0022',
+        zHair:'#FFD700', zHairDk:'#CC9900', zSkin:'#F0C090',
+        zTiara:'#D4A520', zDress:'#4488FF', zEye:'#3a2200',
+    };
+
+    /* ── pixel art (cell-size-agnostic) ── */
+    function r(v) { return Math.round(v); }
+
+    function ganHead(cx, px, py, sz) {
+        cx.fillStyle=C.gBase;  cx.fillRect(px,py,sz,sz);
+        cx.fillStyle=C.gSkin;  cx.fillRect(px+r(sz*.18),py+r(sz*.23),r(sz*.64),r(sz*.55));
+        cx.fillStyle=C.gHair;  cx.fillRect(px+r(sz*.09),py,r(sz*.82),r(sz*.23));
+        cx.fillStyle=C.gHair;  cx.fillRect(px+r(sz*.36),py-r(sz*.09),r(sz*.27),r(sz*.12));
+        cx.fillStyle=C.gEye;
+        cx.fillRect(px+r(sz*.23),py+r(sz*.41),r(sz*.18),r(sz*.14));
+        cx.fillRect(px+r(sz*.59),py+r(sz*.41),r(sz*.18),r(sz*.14));
+        cx.fillStyle=C.gGem;   cx.fillRect(px+r(sz*.41),py+r(sz*.09),r(sz*.18),r(sz*.18));
+        cx.fillStyle=C.gBody;  cx.fillRect(px+r(sz*.05),py+r(sz*.77),r(sz*.9),r(sz*.23));
+        cx.fillStyle=C.gGold;  cx.fillRect(px+r(sz*.05),py+r(sz*.77),r(sz*.9),r(sz*.09));
+    }
+
+    function ganBody(cx, px, py, sz, idx) {
+        cx.fillStyle=C.gBody; cx.fillRect(px+1,py+1,sz-2,sz-2);
+        cx.fillStyle=C.gHL;   cx.fillRect(px+3,py+3,sz-6,2); cx.fillRect(px+3,py+3,2,sz-6);
+        if (idx%2===0) { cx.fillStyle=C.gGold; cx.fillRect(px+2,py+r(sz/2)-1,sz-4,2); }
+        else           { cx.fillStyle='#110020'; cx.fillRect(px+sz-5,py+sz-5,4,4); }
+    }
+
+    function zeldaHead(cx, px, py, sz) {
+        cx.fillStyle=C.zHair;   cx.fillRect(px+1,py+1,sz-2,sz-2);
+        cx.fillStyle=C.zHairDk; cx.fillRect(px+1,py+1,r(sz*.14),sz-2);
+                                 cx.fillRect(px+sz-1-r(sz*.14),py+1,r(sz*.14),sz-2);
+        cx.fillStyle=C.zSkin;   cx.fillRect(px+r(sz*.18),py+r(sz*.18),r(sz*.64),r(sz*.64));
+        cx.fillStyle=C.zTiara;  cx.fillRect(px+r(sz*.14),py+r(sz*.14),r(sz*.73),r(sz*.12));
+        cx.fillStyle='#88CCFF'; cx.fillRect(px+r(sz*.41),py+r(sz*.04),r(sz*.18),r(sz*.12));
+        cx.fillStyle=C.zEye;
+        cx.fillRect(px+r(sz*.27),py+r(sz*.41),r(sz*.14),r(sz*.12));
+        cx.fillRect(px+r(sz*.59),py+r(sz*.41),r(sz*.14),r(sz*.12));
+        cx.fillStyle=C.zDress;  cx.fillRect(px+r(sz*.18),py+sz-r(sz*.23),r(sz*.64),r(sz*.2));
+    }
+
+    /* ── game state ── */
+    let state = 'attract';
+    let snake, dir, nextDir, food, score, hiScore = 0, tickN = 0;
+
+    function getSpd() { return Math.max(4, 9 - Math.floor(score / 5)); }
+
+    function initGame() {
+        snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+        dir = {x:1,y:0}; nextDir = {x:1,y:0};
+        score = 0; tickN = 0; spawnFood(); state = 'playing';
+    }
+
+    function spawnFood() {
+        let p;
+        do { p = {x:Math.floor(Math.random()*COLS), y:Math.floor(Math.random()*ROWS)}; }
+        while (snake.some(s=>s.x===p.x&&s.y===p.y));
+        food = p;
+    }
+
+    function update() {
+        if (state !== 'playing') return;
+        tickN++;
+        if (tickN % getSpd() !== 0) return;
+        dir = {...nextDir};
+        const h = {x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+        if (h.x<0||h.x>=COLS||h.y<0||h.y>=ROWS||snake.some(s=>s.x===h.x&&s.y===h.y)) {
+            hiScore = Math.max(hiScore, score); state = 'dead'; return;
+        }
+        snake.unshift(h);
+        if (h.x===food.x&&h.y===food.y) { score++; spawnFood(); } else snake.pop();
+    }
+
+    /* ── modal draw ── */
+    function pf(cx, sz) { cx.font = `${sz}px "Press Start 2P",monospace`; }
+
+    function drawModal() {
+        mCtx.fillStyle=C.bg; mCtx.fillRect(0,0,CW,CH);
+        mCtx.strokeStyle=C.grid; mCtx.lineWidth=1;
+        for(let x=0;x<=COLS;x++){mCtx.beginPath();mCtx.moveTo(x*SZ,0);mCtx.lineTo(x*SZ,CH);mCtx.stroke();}
+        for(let y=0;y<=ROWS;y++){mCtx.beginPath();mCtx.moveTo(0,y*SZ);mCtx.lineTo(CW,y*SZ);mCtx.stroke();}
+
+        if (food) zeldaHead(mCtx, food.x*SZ, food.y*SZ, SZ);
+        snake.forEach((seg,i) => {
+            if (i===0) ganHead(mCtx, seg.x*SZ, seg.y*SZ, SZ);
+            else ganBody(mCtx, seg.x*SZ, seg.y*SZ, SZ, i);
+        });
+
+        // HUD strip
+        mCtx.fillStyle='rgba(0,0,0,.75)'; mCtx.fillRect(0,0,CW,20);
+        pf(mCtx,7); mCtx.fillStyle=C.gold;
+        mCtx.textAlign='left';  mCtx.fillText('SCORE:'+String(score).padStart(3,'0'),6,14);
+        mCtx.textAlign='right'; mCtx.fillText('BEST:'+String(hiScore).padStart(3,'0'),CW-6,14);
+        mCtx.textAlign='left';
+
+        function olay(w,h){ mCtx.fillStyle='rgba(0,0,0,.87)'; mCtx.fillRect(CW/2-w/2,CH/2-h/2,w,h); }
+
+        if (state==='attract') {
+            olay(330,120); mCtx.textAlign='center';
+            pf(mCtx,10); mCtx.fillStyle=C.bright; mCtx.fillText("GANON'S HUNGER",CW/2,CH/2-36);
+            pf(mCtx,7);  mCtx.fillStyle=C.em;     mCtx.fillText('CAPTURE THE PRINCESS',CW/2,CH/2-12);
+                         mCtx.fillStyle=C.white;   mCtx.fillText('ARROW KEYS / WASD',CW/2,CH/2+12);
+                         mCtx.fillStyle=C.gold;    mCtx.fillText('[ ENTER ] TO BEGIN',CW/2,CH/2+34);
+            mCtx.textAlign='left';
+        }
+        if (state==='dead') {
+            olay(310,110); mCtx.textAlign='center';
+            pf(mCtx,13); mCtx.fillStyle=C.red;   mCtx.fillText('DEFEATED!',CW/2,CH/2-22);
+            pf(mCtx,7);  mCtx.fillStyle=C.gold;  mCtx.fillText('SCORE: '+score,CW/2,CH/2-1);
+                         mCtx.fillStyle=C.bright; mCtx.fillText('BEST: '+hiScore,CW/2,CH/2+18);
+                         mCtx.fillStyle=C.white;  mCtx.fillText('[ ENTER ] TO RETRY',CW/2,CH/2+38);
+            mCtx.textAlign='left';
+        }
+    }
+
+    /* ── preview draw ── */
+    let prevTick=0, blinkOn=true;
+    let pvSnake=[{x:7,y:4},{x:6,y:4},{x:5,y:4},{x:4,y:4}];
+    let pvDir={x:1,y:0}, pvFood={x:12,y:4};
+
+    function drawPreview() {
+        pCtx.fillStyle=C.bg; pCtx.fillRect(0,0,pCvs.width,pCvs.height);
+        pCtx.strokeStyle=C.grid; pCtx.lineWidth=1;
+        for(let x=0;x<=PCOLS;x++){pCtx.beginPath();pCtx.moveTo(x*PSZ,0);pCtx.lineTo(x*PSZ,pCvs.height);pCtx.stroke();}
+        for(let y=0;y<=PROWS;y++){pCtx.beginPath();pCtx.moveTo(0,y*PSZ);pCtx.lineTo(pCvs.width,y*PSZ);pCtx.stroke();}
+
+        if (pvFood) zeldaHead(pCtx, pvFood.x*PSZ, pvFood.y*PSZ, PSZ);
+        pvSnake.forEach((seg,i) => {
+            if (i===0) ganHead(pCtx, seg.x*PSZ, seg.y*PSZ, PSZ);
+            else ganBody(pCtx, seg.x*PSZ, seg.y*PSZ, PSZ, i);
+        });
+
+        pCtx.fillStyle='rgba(0,0,0,.65)'; pCtx.fillRect(0,pCvs.height-26,pCvs.width,26);
+        pCtx.font='6px "Press Start 2P",monospace'; pCtx.textAlign='center';
+        pCtx.fillStyle = blinkOn ? C.gold : C.bright;
+        pCtx.fillText('CLICK TO PLAY', pCvs.width/2, pCvs.height-10);
+        pCtx.textAlign='left';
+
+        prevTick++;
+        if (prevTick%20===0) blinkOn=!blinkOn;
+        if (prevTick%14===0) {
+            const nh={x:(pvSnake[0].x+pvDir.x+PCOLS)%PCOLS, y:(pvSnake[0].y+pvDir.y+PROWS)%PROWS};
+            const ate=nh.x===pvFood.x&&nh.y===pvFood.y;
+            pvSnake.unshift(nh);
+            if (!ate) pvSnake.pop();
+            else pvFood={x:Math.floor(Math.random()*PCOLS), y:Math.floor(Math.random()*PROWS)};
+            if (Math.random()<.22) {
+                pvDir = pvDir.x!==0
+                    ? (Math.random()<.5?{x:0,y:-1}:{x:0,y:1})
+                    : (Math.random()<.5?{x:-1,y:0}:{x:1,y:0});
+            }
+        }
+    }
+
+    /* ── open / close ── */
+    window.openSnakeGame  = () => { snakeModal.classList.add('open');    document.body.style.overflow='hidden'; };
+    window.closeSnakeGame = () => { snakeModal.classList.remove('open'); document.body.style.overflow=''; };
+    snakeModal.addEventListener('click', e => { if (e.target===snakeModal) closeSnakeGame(); });
+
+    /* ── input ── */
+    const DM = {
+        ArrowUp:{x:0,y:-1}, KeyW:{x:0,y:-1},
+        ArrowDown:{x:0,y:1}, KeyS:{x:0,y:1},
+        ArrowLeft:{x:-1,y:0}, KeyA:{x:-1,y:0},
+        ArrowRight:{x:1,y:0}, KeyD:{x:1,y:0},
+    };
+    document.addEventListener('keydown', e => {
+        if (!snakeModal.classList.contains('open')) return;
+        const d = DM[e.code];
+        if (d) { if (!(d.x===-dir.x&&d.y===-dir.y)) nextDir=d; e.preventDefault(); return; }
+        if (e.code==='Enter')  { if (state!=='playing') initGame(); e.preventDefault(); }
+        if (e.code==='Escape') { closeSnakeGame(); e.preventDefault(); }
+    });
+
+    /* ── boot ── */
+    snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+    dir={x:1,y:0}; nextDir={x:1,y:0}; food={x:14,y:10};
+
+    (function loop() { update(); if(snakeModal.classList.contains('open')) drawModal(); drawPreview(); requestAnimationFrame(loop); })();
 })();
 
 /* ─── NAVI CURSOR FAIRY ──────────────── */
